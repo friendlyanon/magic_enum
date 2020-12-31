@@ -1,53 +1,66 @@
-﻿cmake_minimum_required(VERSION 3.8)
+﻿cmake_minimum_required(VERSION 3.14)
 
-project(magic_enum VERSION "0.7.2" LANGUAGES CXX)
+project(magic_enum
+        VERSION 0.7.2
+        DESCRIPTION "Static reflection for enums for modern C++"
+        HOMEPAGE_URL "https://github.com/Neargye/magic_enum"
+        LANGUAGES CXX)
 
-if(CMAKE_PROJECT_NAME STREQUAL PROJECT_NAME)
-    set(IS_TOPLEVEL_PROJECT TRUE)
-else()
-    set(IS_TOPLEVEL_PROJECT FALSE)
+# ---- Warning guard ----
+
+# Protect dependents from this project's warnings if the guard isn't disabled
+set(magic_enum_warning_guard SYSTEM)
+if(magic_enum_INCLUDE_WITHOUT_SYSTEM)
+  set(magic_enum_warning_guard "")
 endif()
 
-option(MAGIC_ENUM_OPT_BUILD_EXAMPLES "Build magic_enum examples" ${IS_TOPLEVEL_PROJECT})
-option(MAGIC_ENUM_OPT_BUILD_TESTS "Build and perform magic_enum tests" ${IS_TOPLEVEL_PROJECT})
-option(MAGIC_ENUM_OPT_INSTALL "Generate and install magic_enum target" ${IS_TOPLEVEL_PROJECT})
+# ---- Declare library ----
 
-if(MAGIC_ENUM_OPT_BUILD_EXAMPLES)
-    add_subdirectory(example)
-endif()
+add_library(magic_enum INTERFACE)
+add_library(magic_enum::magic_enum ALIAS magic_enum)
 
-if(MAGIC_ENUM_OPT_BUILD_TESTS)
-    enable_testing()
-    add_subdirectory(test)
-endif()
+target_include_directories(magic_enum
+        ${magic_enum_warning_guard}
+        INTERFACE
+        "$<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/include>")
+
+target_compile_features(magic_enum INTERFACE cxx_std_17)
+
+# ---- Install ----
 
 include(CMakePackageConfigHelpers)
+include(GNUInstallDirs)
 
-add_library(${PROJECT_NAME} INTERFACE)
-add_library(${PROJECT_NAME}::${PROJECT_NAME} ALIAS ${PROJECT_NAME})
-target_include_directories(${PROJECT_NAME}
-        INTERFACE
-            $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
-            $<INSTALL_INTERFACE:include>)
+set(magic_enum_directory "magic_enum-${PROJECT_VERSION}")
+set(magic_enum_include_directory
+        "${CMAKE_INSTALL_INCLUDEDIR}/${magic_enum_directory}")
 
-write_basic_package_version_file(${PROJECT_NAME}ConfigVersion.cmake
-        VERSION ${PROJECT_VERSION}
-        COMPATIBILITY AnyNewerVersion)
+install(DIRECTORY "${PROJECT_SOURCE_DIR}/include/"
+        DESTINATION "${magic_enum_include_directory}"
+        COMPONENT magic_enum_Development)
 
-if(MAGIC_ENUM_OPT_INSTALL)
-    install(TARGETS ${PROJECT_NAME}
-            EXPORT ${PROJECT_NAME}Config)
+install(TARGETS magic_enum
+        EXPORT magic_enumTargets
+        INCLUDES DESTINATION "${magic_enum_include_directory}")
 
-    install(FILES ${CMAKE_CURRENT_BINARY_DIR}/${PROJECT_NAME}ConfigVersion.cmake
-            DESTINATION lib/cmake/${PROJECT_NAME})
+write_basic_package_version_file(
+        magic_enum-config-version.cmake
+        COMPATIBILITY AnyNewerVersion
+        ARCH_INDEPENDENT)
 
-    install(EXPORT ${PROJECT_NAME}Config
-            NAMESPACE ${PROJECT_NAME}::
-            DESTINATION lib/cmake/${PROJECT_NAME})
+set(magic_enum_install_cmakedir
+        "${CMAKE_INSTALL_LIBDIR}/cmake/${magic_enum_directory}")
 
-    install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/include
-            DESTINATION .)
+install(FILES "${PROJECT_BINARY_DIR}/magic_enum-config-version.cmake"
+        DESTINATION "${magic_enum_install_cmakedir}"
+        COMPONENT magic_enum_Development)
 
-    export(EXPORT ${PROJECT_NAME}Config
-            NAMESPACE ${PROJECT_NAME}::)
+install(EXPORT magic_enumTargets
+        FILE magic_enum-config.cmake
+        NAMESPACE magic_enum::
+        DESTINATION "${magic_enum_install_cmakedir}"
+        COMPONENT magic_enum_Development)
+
+if(CMAKE_SOURCE_DIR STREQUAL CMAKE_CURRENT_SOURCE_DIR)
+  include(CPack)
 endif()
